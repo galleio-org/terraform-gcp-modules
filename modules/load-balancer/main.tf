@@ -1,4 +1,4 @@
-# GalleIO Load Balancer Module
+# Galle.io Load Balancer Module
 # Creates an HTTP(S) Load Balancer
 
 # Backend Service

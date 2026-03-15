@@ -1,4 +1,4 @@
-# GalleIO Subnet Module
+# Galle.io Subnet Module
 # Creates a subnet within a VPC
 
 resource "google_compute_subnetwork" "subnet" {
@@ -8,7 +8,7 @@ resource "google_compute_subnetwork" "subnet" {
   network                  = var.network_self_link
   ip_cidr_range            = var.cidr
   private_ip_google_access = var.private_google_access
-  description              = "Subnet created by GalleIO"
+  description              = "Subnet created by Galle.io"
 
   dynamic "log_config" {
     for_each = var.enable_flow_logs ? [1] : []

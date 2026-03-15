@@ -1,4 +1,4 @@
-# GalleIO Example: Web App with Load Balancer
+# Galle.io Example: Web App with Load Balancer
 # This example creates a VPC, subnet, firewall, MIG, and Load Balancer
 
 terraform {
@@ -84,7 +84,7 @@ module "mig" {
     #!/bin/bash
     apt-get update
     apt-get install -y nginx
-    echo "<h1>Hello from GalleIO - $(hostname)</h1>" > /var/www/html/index.html
+    echo "<h1>Hello from Galle.io - $(hostname)</h1>" > /var/www/html/index.html
     systemctl start nginx
   EOF
 }

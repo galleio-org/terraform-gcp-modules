@@ -1,8 +1,8 @@
-# GalleIO Terraform GCP Modules
+# Galle.io Terraform GCP Modules
 
 Verified, production-ready Terraform modules for Google Cloud Platform.
 
-These modules are used by the GalleIO AI agents to generate reliable infrastructure code.
+These modules are used by the Galle.io AI agents to generate reliable infrastructure code.
 
 ## Available Modules
 
@@ -28,7 +28,7 @@ module "vpc" {
 }
 ```
 
-## For GalleIO Agents (Seth)
+## For Galle.io Agents (Seth)
 
 When generating Terraform code, use ONLY these module sources:
 - `github.com/galleio/terraform-gcp-modules//modules/vpc`

@@ -1,4 +1,4 @@
-# GalleIO MIG Module
+# Galle.io MIG Module
 # Creates a Managed Instance Group with autoscaling
 
 # Instance Template

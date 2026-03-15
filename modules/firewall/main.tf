@@ -1,4 +1,4 @@
-# GalleIO Firewall Module
+# Galle.io Firewall Module
 # Creates common firewall rules for a VPC
 
 # SSH Access (typically from IAP)
@@ -8,7 +8,7 @@ resource "google_compute_firewall" "ssh" {
   name        = "${var.network_name}-allow-ssh"
   project     = var.project_id
   network     = var.network_self_link
-  description = "Allow SSH access - Created by GalleIO"
+  description = "Allow SSH access - Created by Galle.io"
   direction   = "INGRESS"
   priority    = 1000
 
@@ -28,7 +28,7 @@ resource "google_compute_firewall" "http" {
   name        = "${var.network_name}-allow-http"
   project     = var.project_id
   network     = var.network_self_link
-  description = "Allow HTTP access - Created by GalleIO"
+  description = "Allow HTTP access - Created by Galle.io"
   direction   = "INGRESS"
   priority    = 1000
 
@@ -48,7 +48,7 @@ resource "google_compute_firewall" "https" {
   name        = "${var.network_name}-allow-https"
   project     = var.project_id
   network     = var.network_self_link
-  description = "Allow HTTPS access - Created by GalleIO"
+  description = "Allow HTTPS access - Created by Galle.io"
   direction   = "INGRESS"
   priority    = 1000
 
@@ -68,7 +68,7 @@ resource "google_compute_firewall" "internal" {
   name        = "${var.network_name}-allow-internal"
   project     = var.project_id
   network     = var.network_self_link
-  description = "Allow internal communication - Created by GalleIO"
+  description = "Allow internal communication - Created by Galle.io"
   direction   = "INGRESS"
   priority    = 1000
 
@@ -96,7 +96,7 @@ resource "google_compute_firewall" "health_check" {
   name        = "${var.network_name}-allow-health-check"
   project     = var.project_id
   network     = var.network_self_link
-  description = "Allow GCP health checks - Created by GalleIO"
+  description = "Allow GCP health checks - Created by Galle.io"
   direction   = "INGRESS"
   priority    = 1000
 

@@ -1,0 +1,56 @@
+output "network_id" {
+  value = google_compute_network.spoke.id
+}
+
+output "network_name" {
+  value = google_compute_network.spoke.name
+}
+
+output "network_self_link" {
+  description = "Self link — used as Shared VPC network reference in service projects"
+  value       = google_compute_network.spoke.self_link
+}
+
+output "web_subnet_id" {
+  value = google_compute_subnetwork.web.id
+}
+
+output "web_subnet_self_link" {
+  value = google_compute_subnetwork.web.self_link
+}
+
+output "app_subnet_id" {
+  value = google_compute_subnetwork.app.id
+}
+
+output "app_subnet_self_link" {
+  value = google_compute_subnetwork.app.self_link
+}
+
+output "db_subnet_id" {
+  value = google_compute_subnetwork.db.id
+}
+
+output "gke_subnet_id" {
+  description = "GKE node subnet ID. Empty string if GKE subnet not enabled."
+  value       = length(google_compute_subnetwork.gke) > 0 ? google_compute_subnetwork.gke[0].id : ""
+}
+
+output "gke_subnet_self_link" {
+  value = length(google_compute_subnetwork.gke) > 0 ? google_compute_subnetwork.gke[0].self_link : ""
+}
+
+output "gke_pods_range_name" {
+  description = "Name of the GKE pods secondary range — pass to ip_range_pods in GKE cluster"
+  value       = local.gke_pods_range_name
+}
+
+output "gke_services_range_name" {
+  description = "Name of the GKE services secondary range — pass to ip_range_services in GKE cluster"
+  value       = local.gke_services_range_name
+}
+
+output "ncc_spoke_id" {
+  description = "NCC VPC spoke resource ID. Empty string if NCC not enabled."
+  value       = length(google_network_connectivity_spoke.vpc_spoke) > 0 ? google_network_connectivity_spoke.vpc_spoke[0].id : ""
+}

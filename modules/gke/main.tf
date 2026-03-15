@@ -1,4 +1,4 @@
-# GalleIO GKE Module
+# Galle.io GKE Module
 # Creates a GKE Autopilot cluster
 
 resource "google_container_cluster" "cluster" {
