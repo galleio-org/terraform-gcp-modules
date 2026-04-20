@@ -25,11 +25,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 locals {
-  nat_router_name = var.nat_router_name != "" ? var.nat_router_name : "${var.network_name}-router-${var.primary_region}"
-  nat_name        = var.nat_name != "" ? var.nat_name : "${var.network_name}-nat-${var.primary_region}"
-
-  sec_nat_router_name = "${var.network_name}-router-${var.secondary_region}"
-  sec_nat_name        = "${var.network_name}-nat-${var.secondary_region}"
+  unique_regions = toset([for k, v in var.subnets : v.region])
 }
 
 # ── Hub VPC Network ──────────────────────────────────────────────────────────
@@ -42,111 +38,39 @@ resource "google_compute_network" "hub" {
   routing_mode            = var.routing_mode
 }
 
-# ── Primary Region: NVA subnet ───────────────────────────────────────────────
-# /28 — just enough for NVA LAN interfaces (Palo Alto/Fortinet).
-# Not enabled for Private Google Access — NVA controls its own internet path.
+# ── Dynamic Subnets ──────────────────────────────────────────────────────────
 
-resource "google_compute_subnetwork" "nva" {
+resource "google_compute_subnetwork" "subnets" {
+  for_each = var.subnets
+
   project                  = var.project_id
-  name                     = "${var.network_name}-nva-${var.primary_region}"
-  region                   = var.primary_region
+  name                     = "${var.network_name}-${each.value.purpose}-${each.value.region}"
+  region                   = each.value.region
   network                  = google_compute_network.hub.id
-  ip_cidr_range            = var.nva_subnet_cidr
-  private_ip_google_access = false
+  ip_cidr_range            = each.value.cidr
+  private_ip_google_access = each.value.purpose != "nva"
 
-  log_config {
-    aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
+  purpose = each.value.purpose == "proxy" ? "REGIONAL_MANAGED_PROXY" : (each.value.purpose == "psc" ? "PRIVATE" : null)
+  role    = each.value.purpose == "proxy" ? "ACTIVE" : null
+
+  dynamic "log_config" {
+    for_each = each.value.purpose != "proxy" && each.value.purpose != "psc" ? [1] : []
+    content {
+      aggregation_interval = "INTERVAL_10_MIN"
+      flow_sampling        = 0.5
+      metadata             = "INCLUDE_ALL_METADATA"
+    }
   }
 }
 
-# ── Primary Region: Services subnet ─────────────────────────────────────────
-# Bastion host (IAP), Cloud DNS inbound forwarder, shared internal tools.
-
-resource "google_compute_subnetwork" "services" {
-  project                  = var.project_id
-  name                     = "${var.network_name}-services-${var.primary_region}"
-  region                   = var.primary_region
-  network                  = google_compute_network.hub.id
-  ip_cidr_range            = var.services_subnet_cidr
-  private_ip_google_access = true
-
-  log_config {
-    aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
-  }
-}
-
-# ── Primary Region: PSC subnet ───────────────────────────────────────────────
-# Private Service Connect endpoints for googleapis.com, Cloud SQL, etc.
-
-resource "google_compute_subnetwork" "psc" {
-  project                  = var.project_id
-  name                     = "${var.network_name}-psc-${var.primary_region}"
-  region                   = var.primary_region
-  network                  = google_compute_network.hub.id
-  ip_cidr_range            = var.psc_subnet_cidr
-  private_ip_google_access = true
-  purpose                  = "PRIVATE"
-}
-
-# ── Primary Region: Proxy-only subnet ────────────────────────────────────────
-# REQUIRED for Envoy-based L7 Internal HTTPS Load Balancers.
-# Must be purpose=REGIONAL_MANAGED_PROXY and role=ACTIVE.
-
-resource "google_compute_subnetwork" "proxy" {
-  project       = var.project_id
-  name          = "${var.network_name}-proxy-${var.primary_region}"
-  region        = var.primary_region
-  network       = google_compute_network.hub.id
-  ip_cidr_range = var.proxy_subnet_cidr
-  purpose       = "REGIONAL_MANAGED_PROXY"
-  role          = "ACTIVE"
-}
-
-# ── Secondary Region (DR): Services subnet ───────────────────────────────────
-
-resource "google_compute_subnetwork" "services_dr" {
-  count = var.enable_secondary_region ? 1 : 0
-
-  project                  = var.project_id
-  name                     = "${var.network_name}-services-${var.secondary_region}"
-  region                   = var.secondary_region
-  network                  = google_compute_network.hub.id
-  ip_cidr_range            = var.secondary_services_subnet_cidr
-  private_ip_google_access = true
-
-  log_config {
-    aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
-  }
-}
-
-# ── Secondary Region (DR): Proxy-only subnet ─────────────────────────────────
-
-resource "google_compute_subnetwork" "proxy_dr" {
-  count = var.enable_secondary_region ? 1 : 0
-
-  project       = var.project_id
-  name          = "${var.network_name}-proxy-${var.secondary_region}"
-  region        = var.secondary_region
-  network       = google_compute_network.hub.id
-  ip_cidr_range = var.secondary_proxy_subnet_cidr
-  purpose       = "REGIONAL_MANAGED_PROXY"
-  role          = "ACTIVE"
-}
-
-# ── Cloud Router (primary) ────────────────────────────────────────────────────
+# ── Dynamic Cloud Router per Region ──────────────────────────────────────────
 
 resource "google_compute_router" "hub" {
-  count = var.enable_cloud_nat ? 1 : 0
+  for_each = var.enable_cloud_nat ? local.unique_regions : []
 
   project = var.project_id
-  name    = local.nat_router_name
-  region  = var.primary_region
+  name    = "${var.network_name}-router-${each.key}"
+  region  = each.key
   network = google_compute_network.hub.id
 
   bgp {
@@ -154,49 +78,15 @@ resource "google_compute_router" "hub" {
   }
 }
 
-# ── Cloud NAT (primary) ────────────────────────────────────────────────────
+# ── Dynamic Cloud NAT per Region ─────────────────────────────────────────────
 
 resource "google_compute_router_nat" "hub" {
-  count = var.enable_cloud_nat ? 1 : 0
+  for_each = var.enable_cloud_nat ? local.unique_regions : []
 
   project                            = var.project_id
-  name                               = local.nat_name
-  router                             = google_compute_router.hub[0].name
-  region                             = var.primary_region
-  nat_ip_allocate_option             = "AUTO_ONLY"
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
-  min_ports_per_vm                   = var.nat_min_ports_per_vm
-
-  log_config {
-    enable = true
-    filter = "ERRORS_ONLY"
-  }
-}
-
-# ── Cloud Router (secondary / DR) ─────────────────────────────────────────────
-
-resource "google_compute_router" "hub_dr" {
-  count = (var.enable_cloud_nat && var.enable_secondary_region) ? 1 : 0
-
-  project = var.project_id
-  name    = local.sec_nat_router_name
-  region  = var.secondary_region
-  network = google_compute_network.hub.id
-
-  bgp {
-    asn = 64514
-  }
-}
-
-# ── Cloud NAT (secondary / DR) ────────────────────────────────────────────────
-
-resource "google_compute_router_nat" "hub_dr" {
-  count = (var.enable_cloud_nat && var.enable_secondary_region) ? 1 : 0
-
-  project                            = var.project_id
-  name                               = local.sec_nat_name
-  router                             = google_compute_router.hub_dr[0].name
-  region                             = var.secondary_region
+  name                               = "${var.network_name}-nat-${each.key}"
+  router                             = google_compute_router.hub[each.key].name
+  region                             = each.key
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
   min_ports_per_vm                   = var.nat_min_ports_per_vm
@@ -208,7 +98,6 @@ resource "google_compute_router_nat" "hub_dr" {
 }
 
 # ── Firewall: Allow IAP SSH/RDP to hub ───────────────────────────────────────
-# IAP source range → bastion and other internal VMs for SSH tunneling.
 
 resource "google_compute_firewall" "allow_iap_ssh" {
   project = var.project_id
@@ -253,8 +142,5 @@ resource "google_compute_firewall" "allow_internal" {
     protocol = "icmp"
   }
 
-  source_ranges = [
-    var.services_subnet_cidr,
-    var.nva_subnet_cidr,
-  ]
+  source_ranges = length(var.subnets) > 0 ? [for s in var.subnets : s.cidr] : ["10.0.0.0/8"]
 }

@@ -43,73 +43,29 @@ resource "google_compute_network" "spoke" {
   routing_mode            = var.routing_mode
 }
 
-# ── Web tier subnet ──────────────────────────────────────────────────────────
-# External LB backends land here. MIG instance groups for web tier.
-# GKE node pools can also use this subnet if web workloads run on GKE.
+# ── Dynamic Subnets ──────────────────────────────────────────────────────────
 
-resource "google_compute_subnetwork" "web" {
+resource "google_compute_subnetwork" "subnets" {
+  for_each = var.subnets
+
   project                  = var.project_id
-  name                     = "${var.environment}-web-${var.region}"
-  region                   = var.region
+  name                     = "${var.environment}-${each.value.purpose != "" ? each.value.purpose : each.key}-${each.value.region}"
+  region                   = each.value.region
   network                  = google_compute_network.spoke.id
-  ip_cidr_range            = var.web_subnet_cidr
+  ip_cidr_range            = each.value.cidr
   private_ip_google_access = true
 
-  log_config {
-    aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
+  purpose = each.value.purpose == "proxy" ? "REGIONAL_MANAGED_PROXY" : null
+  role    = each.value.purpose == "proxy" ? "ACTIVE" : null
+
+  dynamic "log_config" {
+    for_each = each.value.purpose != "proxy" ? [1] : []
+    content {
+      aggregation_interval = "INTERVAL_10_MIN"
+      flow_sampling        = 0.5
+      metadata             = "INCLUDE_ALL_METADATA"
+    }
   }
-}
-
-# ── App tier subnet ───────────────────────────────────────────────────────────
-# Internal LB backends. Services, APIs, business logic tier.
-
-resource "google_compute_subnetwork" "app" {
-  project                  = var.project_id
-  name                     = "${var.environment}-app-${var.region}"
-  region                   = var.region
-  network                  = google_compute_network.spoke.id
-  ip_cidr_range            = var.app_subnet_cidr
-  private_ip_google_access = true
-
-  log_config {
-    aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
-  }
-}
-
-# ── DB tier subnet ────────────────────────────────────────────────────────────
-# Cloud SQL private IP, AlloyDB. No external IPs ever.
-
-resource "google_compute_subnetwork" "db" {
-  project                  = var.project_id
-  name                     = "${var.environment}-db-${var.region}"
-  region                   = var.region
-  network                  = google_compute_network.spoke.id
-  ip_cidr_range            = var.db_subnet_cidr
-  private_ip_google_access = true
-
-  log_config {
-    aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
-  }
-}
-
-# ── Proxy-only subnet ─────────────────────────────────────────────────────────
-# REQUIRED for Envoy-based L7 Internal HTTPS LBs in this spoke.
-# /23 minimum — each Envoy backend consumes one IP per proxy VM.
-
-resource "google_compute_subnetwork" "proxy" {
-  project       = var.project_id
-  name          = "${var.environment}-proxy-${var.region}"
-  region        = var.region
-  network       = google_compute_network.spoke.id
-  ip_cidr_range = var.proxy_subnet_cidr
-  purpose       = "REGIONAL_MANAGED_PROXY"
-  role          = "ACTIVE"
 }
 
 # ── GKE node subnet with secondary ranges ────────────────────────────────────
@@ -211,9 +167,5 @@ resource "google_compute_firewall" "allow_internal" {
     protocol = "icmp"
   }
 
-  source_ranges = [
-    var.web_subnet_cidr,
-    var.app_subnet_cidr,
-    var.db_subnet_cidr,
-  ]
+  source_ranges = length(var.subnets) > 0 ? [for s in var.subnets : s.cidr] : ["10.0.0.0/8"]
 }

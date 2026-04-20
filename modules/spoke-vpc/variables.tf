@@ -36,26 +36,16 @@ variable "environment" {
   type        = string
 }
 
-# ── 3-Tier application subnets ───────────────────────────────────────────────
+# ── Dynamic Subnets ──────────────────────────────────────────────────────────
 
-variable "web_subnet_cidr" {
-  description = "Web tier subnet CIDR (External LB backends, MIG/GKE nodes)"
-  type        = string
-}
-
-variable "app_subnet_cidr" {
-  description = "Application tier subnet CIDR (Internal LB backends, APIs)"
-  type        = string
-}
-
-variable "db_subnet_cidr" {
-  description = "Database tier subnet CIDR (Cloud SQL private IP, AlloyDB)"
-  type        = string
-}
-
-variable "proxy_subnet_cidr" {
-  description = "Proxy-only subnet CIDR for Internal L7 LBs (Envoy). Use /23 minimum."
-  type        = string
+variable "subnets" {
+  description = "Map of subnets dynamically generated across any number of regions."
+  type = map(object({
+    region  = string
+    cidr    = string
+    purpose = string # e.g., "proxy" for regional managed proxy, or "" for compute
+  }))
+  default = {}
 }
 
 # ── GKE subnet (pre-allocated even before GKE is deployed) ───────────────────

@@ -26,62 +26,16 @@ variable "routing_mode" {
   default     = "GLOBAL"
 }
 
-# ── Primary region subnets ──────────────────────────────────────────────────
+# ── Dynamic Subnets ──────────────────────────────────────────────────────────
 
-variable "primary_region" {
-  description = "Primary GCP region for the hub subnets"
-  type        = string
-  default     = "us-east4"
-}
-
-variable "nva_subnet_cidr" {
-  description = "CIDR for the NVA/Firewall appliance subnet. Tiny /28 — only NVA LAN interfaces."
-  type        = string
-  default     = "10.0.0.0/28"
-}
-
-variable "services_subnet_cidr" {
-  description = "CIDR for the shared services subnet (Bastion, DNS forwarder, internal tooling)"
-  type        = string
-  default     = "10.0.1.0/24"
-}
-
-variable "psc_subnet_cidr" {
-  description = "CIDR for Private Service Connect endpoints subnet"
-  type        = string
-  default     = "10.0.2.0/24"
-}
-
-variable "proxy_subnet_cidr" {
-  description = "CIDR for proxy-only subnet (required for Envoy-based L7 Internal LBs). Use /23 for large deployments."
-  type        = string
-  default     = "10.0.3.0/24"
-}
-
-# ── Secondary region (DR) subnets ───────────────────────────────────────────
-
-variable "enable_secondary_region" {
-  description = "Create mirrored hub subnets in a secondary region for DR"
-  type        = bool
-  default     = false
-}
-
-variable "secondary_region" {
-  description = "Secondary GCP region for DR hub subnets"
-  type        = string
-  default     = "us-central1"
-}
-
-variable "secondary_services_subnet_cidr" {
-  description = "CIDR for secondary-region services subnet"
-  type        = string
-  default     = "10.10.1.0/24"
-}
-
-variable "secondary_proxy_subnet_cidr" {
-  description = "CIDR for secondary-region proxy-only subnet"
-  type        = string
-  default     = "10.10.252.0/23"
+variable "subnets" {
+  description = "Map of subnets dynamically generated across any number of regions."
+  type = map(object({
+    region  = string
+    cidr    = string
+    purpose = string # e.g., "psc", "nva", "proxy", "services"
+  }))
+  default = {}
 }
 
 # ── Cloud NAT ───────────────────────────────────────────────────────────────
