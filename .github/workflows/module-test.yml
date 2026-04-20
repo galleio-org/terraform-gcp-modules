@@ -1,0 +1,83 @@
+name: Module Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'modules/**'
+      - 'CATALOG.json'
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.7.0"
+
+jobs:
+  detect-changed-modules:
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.detect.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed modules
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD | grep '^modules/' | cut -d/ -f1,2 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "modules=$CHANGED" >> $GITHUB_OUTPUT
+          echo "Changed modules: $CHANGED"
+
+  validate:
+    needs: detect-changed-modules
+    if: needs.detect-changed-modules.outputs.modules != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changed-modules.outputs.modules) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ matrix.module }}
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: ${{ matrix.module }}
+        run: terraform validate
+
+      - name: Terraform Format Check
+        working-directory: ${{ matrix.module }}
+        run: terraform fmt -check -recursive
+
+      - name: Post Result to PR
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const status = '${{ job.status }}' === 'success' ? '✅' : '❌';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${status} Module \`${{ matrix.module }}\`: ${{ job.status }}`
+            });
+
+  validate-catalog:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'CATALOG.json')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate CATALOG.json
+        run: python3 -c "import json; data=json.load(open('CATALOG.json')); assert 'galleio_modules' in data and 'registry_modules' in data; print('CATALOG.json is valid')"

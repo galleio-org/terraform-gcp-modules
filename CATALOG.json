@@ -1,0 +1,182 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-04-13",
+  "description": "Galleio Model Factory - approved Terraform module catalog",
+  "galleio_modules": {
+    "hub_vpc": {
+      "source": "github.com/galleio-org/terraform-gcp-modules//modules/hub-vpc",
+      "version": "v1.0.0",
+      "description": "Hub VPC with NVA subnet, services subnet, PSC subnet, proxy-only subnet",
+      "use_for": ["hub_vpc", "centralized_networking"],
+      "status": "stable"
+    },
+    "spoke_vpc": {
+      "source": "github.com/galleio-org/terraform-gcp-modules//modules/spoke-vpc",
+      "version": "v1.0.0",
+      "description": "Spoke VPC with web/app/db/proxy-only/GKE subnets, NCC attachment",
+      "use_for": ["spoke_vpc", "workload_vpc"],
+      "status": "stable"
+    },
+    "ncc": {
+      "source": "github.com/galleio-org/terraform-gcp-modules//modules/ncc",
+      "version": "v1.0.0",
+      "description": "NCC hub + spoke attachments (VPC spokes, VPN spokes)",
+      "use_for": ["ncc_hub", "hybrid_connectivity"],
+      "status": "stable"
+    },
+    "three_tier_app": {
+      "source": "github.com/galleio-org/terraform-gcp-modules//modules/three-tier-app",
+      "version": "v1.0.0",
+      "description": "Web/App/DB tier with MIG, ILB, health checks, firewall",
+      "use_for": ["three_tier", "web_application"],
+      "status": "stable"
+    },
+    "bastion": {
+      "source": "github.com/galleio-org/terraform-gcp-modules//modules/bastion",
+      "version": "v1.0.0",
+      "description": "IAP-enabled bastion host in Hub VPC services subnet",
+      "use_for": ["bastion", "ssh_access"],
+      "status": "stable"
+    }
+  },
+  "registry_modules": {
+    "gcp_network": {
+      "source": "terraform-google-modules/network/google",
+      "version": "~> 9.0",
+      "description": "VPC network, subnets, routes, secondary ranges",
+      "use_for": ["vpc_creation", "subnet_management", "custom_routes"],
+      "docs_url": "https://registry.terraform.io/modules/terraform-google-modules/network/google",
+      "key_inputs": ["project_id", "network_name", "subnets", "secondary_ranges"]
+    },
+    "gcp_cloud_nat": {
+      "source": "terraform-google-modules/cloud-nat/google",
+      "version": "~> 5.0",
+      "description": "Cloud NAT for private instance internet egress",
+      "use_for": ["egress_internet_access"],
+      "key_inputs": ["project_id", "region", "router", "name"]
+    },
+    "gcp_cloud_dns": {
+      "source": "terraform-google-modules/cloud-dns/google",
+      "version": "~> 5.0",
+      "description": "Private and public Cloud DNS zones",
+      "use_for": ["private_dns", "public_dns", "dns_forwarding"],
+      "key_inputs": ["project_id", "type", "name", "domain", "private_visibility_config_networks"]
+    },
+    "gcp_gke": {
+      "source": "terraform-google-modules/kubernetes-engine/google",
+      "version": "~> 33.0",
+      "description": "GKE cluster with node pools, workload identity, private cluster",
+      "use_for": ["kubernetes_cluster"],
+      "key_inputs": ["project_id", "name", "region", "network", "subnetwork", "ip_range_pods", "ip_range_services"]
+    },
+    "gcp_cloud_sql": {
+      "source": "terraform-google-modules/sql-db/google",
+      "version": "~> 18.0",
+      "description": "Cloud SQL (PostgreSQL / MySQL) with HA, replicas, private IP",
+      "use_for": ["cloud_sql", "postgres", "mysql"],
+      "key_inputs": ["project_id", "name", "database_version", "region", "db_name", "user_name", "ip_configuration"]
+    },
+    "gcp_iam": {
+      "source": "terraform-google-modules/iam/google//modules/projects_iam",
+      "version": "~> 7.7",
+      "description": "Project-level IAM bindings",
+      "use_for": ["iam_bindings", "service_account_roles"],
+      "key_inputs": ["projects", "mode", "bindings"]
+    },
+    "gcp_org_policy": {
+      "source": "terraform-google-modules/org-policy/google",
+      "version": "~> 5.0",
+      "description": "Organization policy constraints",
+      "use_for": ["org_policies"],
+      "key_inputs": ["policy_for", "policy_type", "constraint"]
+    },
+    "gcp_secret_manager": {
+      "source": "terraform-google-modules/secret-manager/google",
+      "version": "~> 0.4",
+      "description": "Secret Manager secrets with IAM bindings",
+      "use_for": ["secrets", "credentials_management"],
+      "key_inputs": ["project_id", "secrets"]
+    },
+    "gcp_log_export": {
+      "source": "terraform-google-modules/log-export/google",
+      "version": "~> 7.0",
+      "description": "Log sinks to BigQuery, GCS, Pub/Sub, Splunk",
+      "use_for": ["log_sinks", "centralized_logging", "siem_export"],
+      "key_inputs": ["destination_uri", "filter", "log_sink_name", "parent_resource_id"]
+    },
+    "gcp_project_factory": {
+      "source": "terraform-google-modules/project-factory/google",
+      "version": "~> 15.0",
+      "description": "GCP project creation with standard APIs, billing, SA, Shared VPC",
+      "use_for": ["project_creation"],
+      "key_inputs": ["name", "org_id", "billing_account", "folder_id", "activate_apis"]
+    }
+  },
+  "native_patterns": {
+    "vpc": {
+      "resources": ["google_compute_network", "google_compute_subnetwork"],
+      "reason": "Simple VPC creation doesn't need a module — 2-3 resources max"
+    },
+    "firewall": {
+      "resources": ["google_compute_firewall"],
+      "reason": "Firewall rules are customer-specific and hard to abstract usefully"
+    },
+    "mig": {
+      "resources": [
+        "google_compute_instance_template",
+        "google_compute_region_instance_group_manager",
+        "google_compute_autoscaler"
+      ],
+      "reason": "MIG + autoscaler are simple native resources; no module needed for basic setups"
+    },
+    "ilb": {
+      "resources": [
+        "google_compute_health_check",
+        "google_compute_region_backend_service",
+        "google_compute_forwarding_rule"
+      ],
+      "reason": "Internal LB is 3-4 native resources; straightforward to generate"
+    },
+    "ncc_native": {
+      "resources": [
+        "google_network_connectivity_hub",
+        "google_network_connectivity_spoke"
+      ],
+      "reason": "NCC hub/spoke are native resources; no official module exists yet"
+    },
+    "cloud_router": {
+      "resources": ["google_compute_router", "google_compute_router_nat"],
+      "reason": "Simple 2-resource pattern; module adds no value"
+    },
+    "service_account": {
+      "resources": ["google_service_account", "google_project_iam_member"],
+      "reason": "SA creation is 1-2 resources; no module needed"
+    }
+  },
+  "topology_module_sets": {
+    "standalone": {
+      "networking": ["gcp_network", "gcp_cloud_nat"],
+      "compute": ["gcp_gke"],
+      "database": ["gcp_cloud_sql"],
+      "dns": ["gcp_cloud_dns"],
+      "iam": ["gcp_iam"]
+    },
+    "hub_spoke": {
+      "hub_network": ["hub_vpc", "ncc", "gcp_cloud_nat", "gcp_cloud_dns"],
+      "spoke_network": ["spoke_vpc"],
+      "hub_services": ["bastion"],
+      "workloads": ["three_tier_app"],
+      "compute": ["gcp_gke"],
+      "database": ["gcp_cloud_sql"],
+      "security": ["gcp_org_policy", "gcp_secret_manager"],
+      "logging": ["gcp_log_export"],
+      "projects": ["gcp_project_factory"]
+    },
+    "shared_vpc_only": {
+      "networking": ["gcp_network", "gcp_cloud_nat", "gcp_cloud_dns"],
+      "compute": ["gcp_gke"],
+      "database": ["gcp_cloud_sql"],
+      "iam": ["gcp_iam"]
+    }
+  }
+}

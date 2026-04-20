@@ -1,0 +1,75 @@
+name: Publish Module Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.1.0, v2.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Update CATALOG.json version
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          python3 - <<'EOF'
+          import json, os, re, sys
+          version = os.environ.get('VERSION') or sys.argv[1] if len(sys.argv) > 1 else 'v1.0.0'
+          with open('CATALOG.json') as f:
+              catalog = json.load(f)
+          # Update all galleio module versions
+          for key in catalog.get('galleio_modules', {}).values():
+              key['version'] = version
+          catalog['updated_at'] = __import__('datetime').date.today().isoformat()
+          with open('CATALOG.json', 'w') as f:
+              json.dump(catalog, f, indent=2)
+          print(f"Updated CATALOG.json to version {version}")
+          EOF
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Commit updated CATALOG.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CATALOG.json
+          git diff --staged --quiet || git commit -m "chore: update CATALOG.json to ${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ steps.version.outputs.version }}';
+            const modules = require('fs').readdirSync('modules');
+            const body = [
+              `## Galleio Module Factory Release ${tag}`,
+              '',
+              '### Modules in this release:',
+              ...modules.map(m => `- \`${m}\``),
+              '',
+              '### How to use:',
+              '```hcl',
+              `source = "github.com/galleio-org/terraform-gcp-modules//modules/<name>?ref=${tag}"`,
+              '```',
+              '',
+              'Update `CATALOG.json` reference in your blueprints to use this version.',
+            ].join('\n');
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Module Factory ${tag}`,
+              body: body,
+              draft: false,
+              prerelease: tag.includes('-'),
+            });
