@@ -3,42 +3,52 @@ output "network_id" {
   value       = google_compute_network.hub.id
 }
 
+output "vpc_id" {
+  description = "Alias for network_id"
+  value       = google_compute_network.hub.id
+}
+
 output "network_name" {
   description = "The name of the hub VPC network"
   value       = google_compute_network.hub.name
 }
 
 output "network_self_link" {
-  description = "The self_link of the hub VPC — used for NCC spoke attachment and Shared VPC"
+  description = "The self_link of the hub VPC"
   value       = google_compute_network.hub.self_link
 }
 
-output "services_subnet_id" {
-  description = "ID of the hub services subnet (Bastion, DNS forwarder)"
-  value       = google_compute_subnetwork.services.id
+output "vpc_self_link" {
+  description = "Alias for network_self_link"
+  value       = google_compute_network.hub.self_link
 }
 
-output "services_subnet_self_link" {
-  description = "Self link of the hub services subnet"
-  value       = google_compute_subnetwork.services.self_link
+output "subnets" {
+  description = "Map of all dynamically generated subnets"
+  value       = google_compute_subnetwork.subnets
 }
 
-output "psc_subnet_id" {
-  description = "ID of the PSC subnet"
-  value       = google_compute_subnetwork.psc.id
+output "subnets_ids" {
+  description = "Map of subnet names to their IDs"
+  value       = { for k, s in google_compute_subnetwork.subnets : k => s.id }
 }
 
-output "proxy_subnet_id" {
-  description = "ID of the proxy-only subnet (required for ILB reference)"
-  value       = google_compute_subnetwork.proxy.id
+output "subnets_self_links" {
+  description = "Map of subnet names to their self_links"
+  value       = { for k, s in google_compute_subnetwork.subnets : k => s.self_link }
+}
+
+output "router_name" {
+  description = "Name of the first Cloud Router created (if nat enabled)"
+  value       = var.enable_cloud_nat && length(google_compute_router.hub) > 0 ? values(google_compute_router.hub)[0].name : ""
 }
 
 output "nat_router_name" {
-  description = "Name of the Cloud Router (primary region)"
-  value       = var.enable_cloud_nat ? google_compute_router.hub[0].name : ""
+  description = "Alias for router_name"
+  value       = var.enable_cloud_nat && length(google_compute_router.hub) > 0 ? values(google_compute_router.hub)[0].name : ""
 }
 
-output "nat_name" {
-  description = "Name of the Cloud NAT resource (primary region)"
-  value       = var.enable_cloud_nat ? google_compute_router_nat.hub[0].name : ""
+output "routers" {
+  description = "Map of all created Cloud Routers by region"
+  value       = google_compute_router.hub
 }

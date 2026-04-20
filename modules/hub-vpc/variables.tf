@@ -33,7 +33,7 @@ variable "subnets" {
   type = map(object({
     region  = string
     cidr    = string
-    purpose = string # e.g., "psc", "nva", "proxy", "services"
+    purpose = optional(string, "") # e.g., "psc", "nva", "proxy", "services"
   }))
   default = {}
 }

@@ -1,35 +1,44 @@
 output "network_id" {
-  value = google_compute_network.spoke.id
+  description = "The ID of the spoke VPC network"
+  value       = google_compute_network.spoke.id
+}
+
+output "vpc_id" {
+  description = "Alias for network_id"
+  value       = google_compute_network.spoke.id
 }
 
 output "network_name" {
-  value = google_compute_network.spoke.name
+  description = "The name of the spoke VPC network"
+  value       = google_compute_network.spoke.name
 }
 
 output "network_self_link" {
-  description = "Self link — used as Shared VPC network reference in service projects"
+  description = "The self_link of the spoke VPC"
   value       = google_compute_network.spoke.self_link
 }
 
-output "web_subnet_id" {
-  value = google_compute_subnetwork.web.id
+output "vpc_self_link" {
+  description = "Alias for network_self_link"
+  value       = google_compute_network.spoke.self_link
 }
 
-output "web_subnet_self_link" {
-  value = google_compute_subnetwork.web.self_link
+output "subnets" {
+  description = "Map of all dynamically generated subnets"
+  value       = google_compute_subnetwork.subnets
 }
 
-output "app_subnet_id" {
-  value = google_compute_subnetwork.app.id
+output "subnets_ids" {
+  description = "Map of subnet names to their IDs"
+  value       = { for k, s in google_compute_subnetwork.subnets : k => s.id }
 }
 
-output "app_subnet_self_link" {
-  value = google_compute_subnetwork.app.self_link
+output "subnets_self_links" {
+  description = "Map of subnet names to their self_links"
+  value       = { for k, s in google_compute_subnetwork.subnets : k => s.self_link }
 }
 
-output "db_subnet_id" {
-  value = google_compute_subnetwork.db.id
-}
+
 
 output "gke_subnet_id" {
   description = "GKE node subnet ID. Empty string if GKE subnet not enabled."

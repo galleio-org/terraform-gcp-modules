@@ -53,12 +53,7 @@ resource "google_network_connectivity_spoke" "vpn" {
   labels   = var.labels
 
   linked_vpn_tunnels {
-    dynamic "uris" {
-      for_each = each.value.vpn_tunnels
-      content {
-        uri = uris.value.uri
-      }
-    }
+    uris                       = [for t in each.value.vpn_tunnels : t.uri]
     site_to_site_data_transfer = each.value.site_to_site_data_transfer
   }
 }

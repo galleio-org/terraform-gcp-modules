@@ -43,7 +43,7 @@ variable "subnets" {
   type = map(object({
     region  = string
     cidr    = string
-    purpose = string # e.g., "proxy" for regional managed proxy, or "" for compute
+    purpose = optional(string, "") # e.g., "proxy" for regional managed proxy, or "" for compute
   }))
   default = {}
 }
